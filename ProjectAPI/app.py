@@ -19,7 +19,8 @@ migrate = Migrate(app, db)
 class AuthorModel(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(32), unique=True)
-    quotes = db.relationship('QuoteModel', backref='author', lazy='dynamic')
+    quotes = db.relationship(
+        'QuoteModel', backref='author', cascade="all, delete-orphan", lazy='dynamic')
 
     def __init__(self, name):
        self.name = name
@@ -33,9 +34,11 @@ class AuthorModel(db.Model):
 class QuoteModel(db.Model):
     __tablename__ = "quotes"
     id = db.Column(db.Integer, primary_key=True)
+    #author_id = db.Column(db.Integer, db.ForeignKey('author.id'))
+    #или
     author_id = db.Column(db.Integer, db.ForeignKey(AuthorModel.id))
     text = db.Column(db.String(255), unique=False)
-    rating = db.Column(db.Integer, nullable=False)
+    rating = db.Column(db.Integer, nullable=False, default=1)
     
     def __init__(self, author, text, rating=1):
         self.author_id = author.id
@@ -114,6 +117,20 @@ def get_quotes_by_filter():
     abort(404,f"Quote not found")
 
 
+@app.route("/quotes/<int:quote_id>/rating", methods=['POST'])
+def rating_update(quote_id):
+    change = request.args.get('value',1)
+    quote = QuoteModel.query.get(quote_id)
+    if quote:
+        status = request.args.get('change')
+        if status in 'up':
+            rating = quote.rating + change
+            quote.rating=rating
+            db.session.add(quote)
+            db.session.commit()
+            return jsonify(quote.to_dict()), 200
+    abort(404, f"Quote not found")
+
 @app.route("/authors")
 def get_author():
     authors = AuthorModel.query.all()
@@ -155,6 +172,7 @@ def edit_author(author_id):
     return jsonify(author.to_dict()), 200
 
 
+    
 @app.route("/authors/<int:author_id>", methods=["DELETE"])
 def delete_author_id(author_id):
     author = AuthorModel.query.get(author_id)
@@ -169,7 +187,7 @@ def delete_author_id(author_id):
 def create_quote(author_id):
     author = AuthorModel.query.get(author_id)
     new_quote = request.json
-    q = QuoteModel(author, **new_quote)
+    q = QuoteModel(author, new_quote["text"])
     db.session.add(q)
     db.session.commit()
     return jsonify(q.to_dict()), 201

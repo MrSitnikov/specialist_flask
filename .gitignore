@@ -1,0 +1,4 @@
+__pycache__/
+# Environments
+.flask_venv
+flask_venv/

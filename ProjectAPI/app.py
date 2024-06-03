@@ -116,12 +116,17 @@ def get_quotes_by_filter():
 
 @app.route("/authors")
 def get_author():
-    pass
+    authors = AuthorModel.query.all()
+    authors_dict = [i.to_dict() for i in authors]
+    return jsonify(authors_dict), 200
 
 
 @app.route("/authors/<int:author_id>")
-def get_author_by_id():
-    pass
+def get_author_by_id(author_id):
+    authors = AuthorModel.query.get(author_id)
+    if not authors:
+        return abort(404,f'Автора с id {author_id} нет')
+    return jsonify(authors.to_dict()), 200
 
 
 @app.route("/authors", methods=["POST"])
@@ -131,6 +136,33 @@ def create_author():
        db.session.add(author)
        db.session.commit()
        return jsonify(author.to_dict()), 201
+
+
+@app.put("/authors/<int:author_id>")
+def edit_author(author_id):
+    new_quote = request.json
+    author = AuthorModel.query.get(author_id)
+    if author is None:
+        abort(404, f"Quote with id={author_id} not found")
+    # if new_quote.get('author'):
+    #     quote.author = new_quote['author']
+    # if new_quote.get('text'):
+    #     quote.text = new_quote['text']
+    for k,v in new_quote.items():
+        # аналогично author.name = 'New Name'
+        setattr(author, k, v)
+    db.session.commit()
+    return jsonify(author.to_dict()), 200
+
+
+@app.route("/authors/<int:author_id>", methods=["DELETE"])
+def delete_author_id(author_id):
+    author = AuthorModel.query.get(author_id)
+    if author is None:
+        abort(404, f"Author_id with id={author_id} not found")
+    db.session.delete(author)
+    db.session.commit()
+    return f"Quote with id={author_id} has deleted {author.to_dict()}", 200
 
 
 @app.route("/authors/<int:author_id>/quotes", methods=["POST"])
